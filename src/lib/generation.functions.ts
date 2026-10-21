@@ -62,7 +62,7 @@ export const triggerPlanGeneration = createServerFn({ method: "POST" })
       const headers: Record<string, string> = { "content-type": "application/json" };
       const secret = process.env["N8N_WEBHOOK_SECRET"];
       if (secret) headers["x-plancraft-secret"] = secret;
-      const res = await fetch(encodeURI(webhookUrl), {
+      const res = await fetch(new URL(webhookUrl).toString(), {
         method: "POST",
         headers,
         body: JSON.stringify({
