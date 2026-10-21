@@ -58,3 +58,29 @@ export const getRequest = createServerFn({ method: "GET" })
       .maybeSingle();
     return { request, plan: plan ?? null };
   });
+
+export const updateRequest = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => createSchema.extend({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count } = await supabaseAdmin
+      .from("project_plans")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", data.id);
+    if ((count ?? 0) > 0) throw new Error("This request already has a plan and can't be edited.");
+    // Conditional update: only rows still in "failed" status can change.
+    const { data: rows, error } = await supabaseAdmin
+      .from("project_requests")
+      .update({
+        title: data.title,
+        description: data.description,
+        goal: data.goal || null,
+        additional_context: data.additional_context || null,
+      })
+      .eq("id", data.id)
+      .eq("status", "failed")
+      .select("id");
+    if (error) throw new Error("Could not save your changes. Please try again.");
+    if (!rows || rows.length === 0) throw new Error("Only failed requests can be edited.");
+    return { id: data.id };
+  });

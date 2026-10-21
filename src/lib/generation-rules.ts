@@ -13,3 +13,8 @@ export function canStartGeneration(
   if (status === "processing") return now - new Date(updatedAt).getTime() > STALE_PROCESSING_MS;
   return false;
 }
+
+// Only a failed request without a plan can be edited before retrying.
+export function canEditRequest(status: string, hasPlan: boolean): boolean {
+  return status === "failed" && !hasPlan;
+}
