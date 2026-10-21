@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      project_plans: {
+        Row: {
+          created_at: string
+          estimated_duration: string | null
+          id: string
+          phases: Json
+          project_goal: string | null
+          recommended_actions: Json
+          request_id: string
+          risks: Json
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_duration?: string | null
+          id?: string
+          phases?: Json
+          project_goal?: string | null
+          recommended_actions?: Json
+          request_id: string
+          risks?: Json
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estimated_duration?: string | null
+          id?: string
+          phases?: Json
+          project_goal?: string | null
+          recommended_actions?: Json
+          request_id?: string
+          risks?: Json
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_plans_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "project_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_requests: {
+        Row: {
+          additional_context: string | null
+          created_at: string
+          description: string
+          goal: string | null
+          id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          additional_context?: string | null
+          created_at?: string
+          description: string
+          goal?: string | null
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          additional_context?: string | null
+          created_at?: string
+          description?: string
+          goal?: string | null
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
