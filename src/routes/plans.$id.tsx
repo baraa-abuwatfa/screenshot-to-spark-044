@@ -3,10 +3,61 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
-import { getRequest } from "@/lib/plans.functions";
+import { getRequest, updateRequest } from "@/lib/plans.functions";
 import { triggerPlanGeneration } from "@/lib/generation.functions";
-import { canStartGeneration } from "@/lib/generation-rules";
+import { canEditRequest, canStartGeneration } from "@/lib/generation-rules";
+
+type EditableRequest = { id: string; title: string; description: string; goal: string | null; additional_context: string | null };
+
+function EditForm({ request, onCancel, onSaved }: { request: EditableRequest; onCancel: () => void; onSaved: () => void }) {
+  const save = useServerFn(updateRequest);
+  const [form, setForm] = useState({
+    title: request.title,
+    description: request.description,
+    goal: request.goal ?? "",
+    additional_context: request.additional_context ?? "",
+  });
+  const [error, setError] = useState<string | null>(null);
+  const m = useMutation({
+    mutationFn: () => save({ data: { id: request.id, ...form } }),
+    onSuccess: onSaved,
+    onError: (e) => setError((e as Error).message || "Could not save your changes."),
+  });
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  return (
+    <form
+      className="space-y-4"
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (m.isPending) return;
+        if (!form.title.trim()) return setError("Please enter a project title.");
+        if (!form.description.trim()) return setError("Please describe your idea.");
+        setError(null);
+        m.mutate();
+      }}
+    >
+      <h1 className="text-2xl font-semibold">Edit request</h1>
+      <div className="space-y-1.5"><Label htmlFor="e-title">Project Title *</Label>
+        <Input id="e-title" value={form.title} onChange={set("title")} maxLength={200} /></div>
+      <div className="space-y-1.5"><Label htmlFor="e-desc">Project Description *</Label>
+        <Textarea id="e-desc" rows={5} value={form.description} onChange={set("description")} maxLength={5000} /></div>
+      <div className="space-y-1.5"><Label htmlFor="e-goal">Main Goal</Label>
+        <Input id="e-goal" value={form.goal} onChange={set("goal")} maxLength={500} /></div>
+      <div className="space-y-1.5"><Label htmlFor="e-ctx">Additional Context</Label>
+        <Textarea id="e-ctx" rows={3} value={form.additional_context} onChange={set("additional_context")} maxLength={5000} /></div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={m.isPending}>{m.isPending ? "Saving…" : "Save Changes"}</Button>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={m.isPending}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
 
 export const Route = createFileRoute("/plans/$id")({
   head: () => ({
@@ -34,6 +85,7 @@ function PlanPage() {
   const fetchReq = useServerFn(getRequest);
   const trigger = useServerFn(triggerPlanGeneration);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const valid = /^[0-9a-f-]{36}$/i.test(id);
 
   const q = useQuery({
@@ -75,21 +127,43 @@ function PlanPage() {
     <Shell>
       {back}
       <article className="mt-6 rounded-2xl border border-border bg-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-3xl font-semibold">{r.title}</h1>
-          <StatusBadge status={r.status} />
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">Created {new Date(r.created_at).toLocaleString()}</p>
-        <Detail label="Description" value={r.description} />
-        <Detail label="Main Goal" value={r.goal} />
-        <Detail label="Additional Context" value={r.additional_context} />
-        {!plan && (
-          <div className="mt-6">
-            <Button onClick={() => { if (!gen.isPending) gen.mutate(); }} disabled={gen.isPending || !canGenerate}>
-              {gen.isPending ? "Sending…" : r.status === "processing" ? "Analyzing…" : r.status === "failed" ? "Try Again" : "Generate My Plan"}
-            </Button>
-            {notice && <p role="status" className="mt-3 rounded-lg bg-secondary p-3 text-sm">{notice}</p>}
-          </div>
+        {editing && canEditRequest(r.status, !!plan) ? (
+          <EditForm
+            request={r}
+            onCancel={() => setEditing(false)}
+            onSaved={() => {
+              setEditing(false);
+              setNotice("Changes saved. You can now try generating again.");
+              qc.invalidateQueries({ queryKey: ["request", id] });
+              qc.invalidateQueries({ queryKey: ["requests"] });
+            }}
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-3xl font-semibold">{r.title}</h1>
+              <StatusBadge status={r.status} />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Created {new Date(r.created_at).toLocaleString()}</p>
+            <Detail label="Description" value={r.description} />
+            <Detail label="Main Goal" value={r.goal} />
+            <Detail label="Additional Context" value={r.additional_context} />
+            {!plan && (
+              <div className="mt-6">
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => { if (!gen.isPending) gen.mutate(); }} disabled={gen.isPending || !canGenerate}>
+                    {gen.isPending ? "Sending…" : r.status === "processing" ? "Analyzing…" : r.status === "failed" ? "Try Again" : "Generate My Plan"}
+                  </Button>
+                  {canEditRequest(r.status, !!plan) && (
+                    <Button variant="outline" onClick={() => { setNotice(null); setEditing(true); }} disabled={gen.isPending}>
+                      Edit Request
+                    </Button>
+                  )}
+                </div>
+                {notice && <p role="status" className="mt-3 rounded-lg bg-secondary p-3 text-sm">{notice}</p>}
+              </div>
+            )}
+          </>
         )}
       </article>
 
