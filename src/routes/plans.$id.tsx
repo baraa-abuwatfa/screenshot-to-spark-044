@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getRequest } from "@/lib/plans.functions";
 import { triggerPlanGeneration } from "@/lib/generation.functions";
+import { canStartGeneration } from "@/lib/generation-rules";
 
 export const Route = createFileRoute("/plans/$id")({
   head: () => ({
@@ -65,6 +66,7 @@ function PlanPage() {
 
   const { request: r, plan } = q.data!;
   if (!r) return null;
+  const canGenerate = canStartGeneration(r.status, !!plan, r.updated_at);
   const phases: Phase[] = Array.isArray(plan?.phases) ? (plan!.phases as Phase[]).filter((p) => p && typeof p === "object") : [];
   const actions = textList(plan?.recommended_actions);
   const risks = textList(plan?.risks);
@@ -81,17 +83,23 @@ function PlanPage() {
         <Detail label="Description" value={r.description} />
         <Detail label="Main Goal" value={r.goal} />
         <Detail label="Additional Context" value={r.additional_context} />
-        <div className="mt-6">
-          <Button onClick={() => gen.mutate()} disabled={gen.isPending || r.status === "processing"}>
-            {gen.isPending ? "Sending…" : r.status === "processing" ? "Analyzing…" : plan ? "Regenerate My Plan" : "Generate My Plan"}
-          </Button>
-          {notice && <p role="status" className="mt-3 rounded-lg bg-secondary p-3 text-sm">{notice}</p>}
-        </div>
+        {!plan && (
+          <div className="mt-6">
+            <Button onClick={() => { if (!gen.isPending) gen.mutate(); }} disabled={gen.isPending || !canGenerate}>
+              {gen.isPending ? "Sending…" : r.status === "processing" ? "Analyzing…" : r.status === "failed" ? "Try Again" : "Generate My Plan"}
+            </Button>
+            {notice && <p role="status" className="mt-3 rounded-lg bg-secondary p-3 text-sm">{notice}</p>}
+          </div>
+        )}
       </article>
 
       {!plan ? (
         <p className="mt-8 rounded-2xl border border-dashed border-border p-6 text-center text-muted-foreground">
-          This request has been saved. AI plan generation will be available once the n8n workflow is connected.
+          {r.status === "processing"
+            ? "Your plan is being generated. This page updates automatically."
+            : r.status === "failed"
+              ? "The last generation attempt failed. You can try again."
+              : "Your request is saved. Click Generate My Plan to create it."}
         </p>
       ) : (
         <div className="mt-8 space-y-8">

@@ -12,3 +12,4 @@
 ## Architecture rules
 - All database access goes through server functions in src/lib/*.functions.ts using the server-only admin client; tables have RLS on with no public policies. Why: no auth yet, so browsers must never read/write tables directly.
 - Plan generation is triggered only via src/lib/generation.functions.ts, which POSTs to the N8N_WEBHOOK_URL secret; n8n writes project_plans and request status itself. Why: keeps credentials server-side and supports async polling.
+- Plan generation eligibility lives in src/lib/generation-rules.ts and is enforced server-side by an atomic conditional status update (pending/failed/stale processing -> processing); requests with a plan are never regenerated. Why: project_plans.request_id is unique, so duplicate triggers make n8n crash.
