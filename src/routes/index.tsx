@@ -72,8 +72,8 @@ function CreateForm() {
     e.preventDefault();
     if (m.isPending) return;
     const errs: Record<string, string> = {};
-    if (!form.title.trim()) errs.title = "Please enter a project title.";
-    if (!form.description.trim()) errs.description = "Please describe your idea.";
+    if (!form.title.trim()) errs["title"] = "Please enter a project title.";
+    if (!form.description.trim()) errs["description"] = "Please describe your idea.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setSavedId(null);
@@ -87,12 +87,12 @@ function CreateForm() {
     <section aria-labelledby="create-heading" className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <h2 id="create-heading" className="text-2xl font-semibold">Create a plan</h2>
       <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
-        <Field id="title" label="Project Title" required error={errors.title}>
-          <Input id="title" value={form.title} onChange={set("title")} maxLength={200} aria-invalid={!!errors.title} />
+        <Field id="title" label="Project Title" required error={errors["title"]}>
+          <Input id="title" value={form.title} onChange={set("title")} maxLength={200} aria-invalid={!!errors["title"]} />
         </Field>
-        <Field id="description" label="Project Description" required error={errors.description}>
+        <Field id="description" label="Project Description" required error={errors["description"]}>
           <Textarea id="description" rows={5} value={form.description} onChange={set("description")} maxLength={5000}
-            placeholder="Explain your idea and what you want to achieve." aria-invalid={!!errors.description} />
+            placeholder="Explain your idea and what you want to achieve." aria-invalid={!!errors["description"]} />
         </Field>
         <Field id="goal" label="Main Goal">
           <Input id="goal" value={form.goal} onChange={set("goal")} maxLength={500} />
@@ -121,7 +121,7 @@ function CreateForm() {
   );
 }
 
-function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string | undefined; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>
