@@ -72,8 +72,8 @@ function CreateForm() {
     e.preventDefault();
     if (m.isPending) return;
     const errs: Record<string, string> = {};
-    if (!form.title.trim()) errs.title = "Please enter a project title.";
-    if (!form.description.trim()) errs.description = "Please describe your idea.";
+    if (!form.title.trim()) errs["title"] = "Please enter a project title.";
+    if (!form.description.trim()) errs["description"] = "Please describe your idea.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setSavedId(null);
@@ -121,7 +121,7 @@ function CreateForm() {
   );
 }
 
-function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string | undefined; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>
